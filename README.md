@@ -51,6 +51,14 @@ This repo includes a `render.yaml` blueprint for a static web service.
 3. Connect your repository and deploy.
 4. Render will read `render.yaml` and create a static service named `hanvas`.
 
+If Blueprint import fails, create the service manually:
+
+1. In Render, choose **New +** → **Static Site**.
+2. Connect the repository.
+3. Set **Build Command** to empty.
+4. Set **Publish Directory** to `.`.
+5. Deploy.
+
 After deploy, open your Render URL over HTTPS and allow camera access in the browser.
 
 ## License
