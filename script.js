@@ -29,9 +29,16 @@ let enableWebcamButton;
 let clearButton;
 let exportButton;
 let colorSelect;
+let toggleDrawingButton;
+let toggleMixingButton;
+let toggleMixModeButton;
 let webcamRunning = false;
 let stream = null;
 let midpointTrails = {};
+let drawingEnabled = true;
+let colorMixingEnabled = true;
+const MIXING_MODES = ["screen", "multiply"];
+let currentMixingModeIndex = 0;
 
 const DEFAULT_PAINT_COLOR = "#6fa8e6";
 const CONNECTOR_COLOR = "#9cc2ee";
@@ -48,6 +55,25 @@ function setStatus(message) {
 function setWebcamButtonLabel(text) {
   if (enableWebcamButton) {
     enableWebcamButton.textContent = text;
+  }
+}
+
+function setDrawingButtonLabel() {
+  if (toggleDrawingButton) {
+    toggleDrawingButton.textContent = drawingEnabled ? "DRAWING: ON" : "DRAWING: OFF";
+  }
+}
+
+function setMixingButtonLabel() {
+  if (toggleMixingButton) {
+    toggleMixingButton.textContent = colorMixingEnabled ? "COLOR MIXING: ON" : "COLOR MIXING: OFF";
+  }
+}
+
+function setMixModeButtonLabel() {
+  if (toggleMixModeButton) {
+    const modeLabel = MIXING_MODES[currentMixingModeIndex].toUpperCase();
+    toggleMixModeButton.textContent = `MIX MODE: ${modeLabel}`;
   }
 }
 
@@ -111,10 +137,13 @@ function drawMidpoint(midpoint) {
   const radiusX = midpoint.radiusX || 3;
   const radiusY = midpoint.radiusY || 3;
   
+  canvasCtx.save();
+  canvasCtx.globalCompositeOperation = colorMixingEnabled ? MIXING_MODES[currentMixingModeIndex] : "source-over";
   canvasCtx.beginPath();
   canvasCtx.ellipse(x, y, radiusX, radiusY, 0, 0, Math.PI * 2);
   canvasCtx.fillStyle = midpoint.color || currentPaintColor;
   canvasCtx.fill();
+  canvasCtx.restore();
 }
 
 function drawMidpointTrail() {
@@ -186,6 +215,25 @@ function setPaintColor(event) {
   if (selectedColor) {
     currentPaintColor = selectedColor;
   }
+}
+
+function toggleDrawing() {
+  drawingEnabled = !drawingEnabled;
+  setDrawingButtonLabel();
+  setStatus(drawingEnabled ? "Drawing enabled." : "Drawing disabled.");
+}
+
+function toggleColorMixing() {
+  colorMixingEnabled = !colorMixingEnabled;
+  setMixingButtonLabel();
+  setStatus(colorMixingEnabled ? "Color overlap mixing enabled." : "Color overlap mixing disabled.");
+}
+
+function toggleColorMixingMode() {
+  currentMixingModeIndex = (currentMixingModeIndex + 1) % MIXING_MODES.length;
+  setMixModeButtonLabel();
+  const modeLabel = MIXING_MODES[currentMixingModeIndex];
+  setStatus(`Color mixing mode set to ${modeLabel}.`);
 }
 
 function clearMidpointTrail() {
@@ -317,6 +365,24 @@ if (colorSelect) {
   colorSelect.addEventListener("change", setPaintColor);
 }
 
+toggleDrawingButton = document.getElementById("toggleDrawingButton");
+if (toggleDrawingButton) {
+  setDrawingButtonLabel();
+  toggleDrawingButton.addEventListener("click", toggleDrawing);
+}
+
+toggleMixingButton = document.getElementById("toggleMixingButton");
+if (toggleMixingButton) {
+  setMixingButtonLabel();
+  toggleMixingButton.addEventListener("click", toggleColorMixing);
+}
+
+toggleMixModeButton = document.getElementById("toggleMixModeButton");
+if (toggleMixModeButton) {
+  setMixModeButtonLabel();
+  toggleMixModeButton.addEventListener("click", toggleColorMixingMode);
+}
+
 // Enable the live webcam view and start detection.
 function enableCam(event) {
   const isLocalhost = location.hostname === "localhost" || location.hostname === "127.0.0.1";
@@ -392,7 +458,7 @@ async function predictWebcam() {
       const handState = inferHandState(landmarks);
       handStateLabels.push(`${handLabel}: ${handState}`);
 
-      if (handState === "Fist" || handState === "Partial hand") {
+      if (drawingEnabled && (handState === "Fist" || handState === "Partial hand")) {
         const midpoint = getLandmarksMidpoint(landmarks);
         addMidpointToTrail(midpoint, handLabel);
       }
