@@ -16,19 +16,24 @@ limitations under the License. -->
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hand Gesture Drawing</title>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
   <script type="module" src="script.js"></script>
 </head>
 <body>
-  <section id="demos">
-    <p id="status">Initializing...</p>
-    <p id="handState">Hand state: No hand detected</p>
+    <section id="demos">
+    <p style="font-family:Arial, sans-serif;" id="status">Initializing...</p>
+    <p style="font-family:Arial, sans-serif;" id="handState">Hand state: No hand detected</p>
 
     <div id="liveView">
-      <button id="webcamButton">
+      <button style="font-family:Arial, sans-serif;" id="webcamButton">
         ENABLE WEBCAM
       </button>
+      <button style="font-family:Arial, sans-serif;" id="clearButton">
+        CLEAR DRAWING
+      </button>
+      <p>     </p>
       <div>
         <video id="webcam" autoplay playsinline></video>
         <canvas id="output_canvas"></canvas>

@@ -10,7 +10,9 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.
+// limitations under the License.// Hand Gesture Drawing Application
+// Copyright (c) 2026 rrocketmann
+// Licensed under the MIT License - see LICENSE file for details    
 
 import {
   HandLandmarker,
@@ -24,8 +26,11 @@ const handStateElement = document.getElementById("handState");
 let handLandmarker = undefined;
 let runningMode = "IMAGE";
 let enableWebcamButton;
+let clearButton;
 let webcamRunning = false;
 let stream = null;
+let midpointTrail = [];
+let lastMidpointSample = null;
 
 function setStatus(message) {
   if (statusElement) {
@@ -67,6 +72,94 @@ function inferHandState(landmarks) {
     return "Fist";
   }
   return "Partial hand";
+}
+
+function getLandmarksMidpoint(landmarks) {
+  if (!landmarks || landmarks.length === 0) {
+    return null;
+  }
+
+  let sumX = 0;
+  let sumY = 0;
+  let sumZ = 0;
+  for (const landmark of landmarks) {
+    sumX += landmark.x;
+    sumY += landmark.y;
+    sumZ += landmark.z || 0;
+  }
+
+  return {
+    x: sumX / landmarks.length,
+    y: sumY / landmarks.length,
+    z: sumZ / landmarks.length
+  };
+}
+
+function drawMidpoint(midpoint) {
+  if (!midpoint) {
+    return;
+  }
+
+  const x = midpoint.x * canvasElement.width;
+  const y = midpoint.y * canvasElement.height;
+  canvasCtx.beginPath();
+  canvasCtx.arc(x, y, midpoint.radius || 8, 0, Math.PI * 2);
+  canvasCtx.fillStyle = "#0000FF";
+  canvasCtx.fill();
+}
+
+function drawMidpointTrail() {
+  for (const point of midpointTrail) {
+    drawMidpoint(point);
+  }
+}
+
+function addMidpointToTrail(midpoint) {
+  if (!midpoint) {
+    return;
+  }
+
+  const now = performance.now();
+  let radius = 12;
+  if (lastMidpointSample) {
+    const deltaTimeSeconds = Math.max((now - lastMidpointSample.timeMs) / 1000, 0.001);
+    const deltaDistance = distance(midpoint, lastMidpointSample.point);
+    const speed = deltaDistance / deltaTimeSeconds;
+    const clampedSpeed = Math.min(Math.max(speed, 0), 1.2);
+    const minRadius = 4;
+    const maxRadius = 16;
+    const speedRatio = clampedSpeed / 1.2;
+    radius = maxRadius - speedRatio * (maxRadius - minRadius);
+  }
+
+  const midpointPoint = {
+    ...midpoint,
+    radius
+  };
+
+  const lastPoint = midpointTrail[midpointTrail.length - 1];
+  if (!lastPoint) {
+    midpointTrail.push(midpointPoint);
+    lastMidpointSample = {
+      point: midpoint,
+      timeMs: now
+    };
+    return;
+  }
+
+  const isFarEnough = distance(midpoint, lastPoint) > 0.01;
+  if (isFarEnough) {
+    midpointTrail.push(midpointPoint);
+    lastMidpointSample = {
+      point: midpoint,
+      timeMs: now
+    };
+  }
+}
+
+function clearMidpointTrail() {
+  midpointTrail = [];
+  lastMidpointSample = null;
 }
 
 function setHandState(text) {
@@ -117,9 +210,11 @@ createHandLandmarker();
 ********************************************************************/
 
 const video = document.getElementById("webcam");
+video.style.transform = "scaleX(-1)";
 const canvasElement = document.getElementById(
   "output_canvas"
 );
+canvasElement.style.transform = "scaleX(-1)"
 const canvasCtx = canvasElement.getContext("2d");
 
 // Check if webcam access is supported.
@@ -137,6 +232,11 @@ if (hasGetUserMedia()) {
 } else {
   setStatus("getUserMedia is not supported by this browser.");
   console.warn("getUserMedia() is not supported by your browser");
+}
+
+clearButton = document.getElementById("clearButton");
+if (clearButton) {
+  clearButton.addEventListener("click", clearMidpointTrail);
 }
 
 // Enable the live webcam view and start detection.
@@ -165,6 +265,7 @@ function enableCam(event) {
     setWebcamButtonLabel("ENABLE WEBCAM");
     setStatus("Webcam stopped.");
     setHandState("No hand detected");
+    clearMidpointTrail();
   } else {
     webcamRunning = true;
     setWebcamButtonLabel("DISABLE WEBCAM");
@@ -217,9 +318,16 @@ async function predictWebcam() {
   canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
   if (results?.landmarks) {
     const primaryHand = results.landmarks[0];
+    let midpoint = null;
     if (primaryHand) {
-      setHandState(inferHandState(primaryHand));
+      const handState = inferHandState(primaryHand);
+      setHandState(handState);
+      if (handState === "Fist" || handState === "Partial hand") {
+        midpoint = getLandmarksMidpoint(primaryHand);
+        addMidpointToTrail(midpoint);
+      }
     }
+    drawMidpointTrail();
     for (const landmarks of results.landmarks) {
       drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
         color: "#00FF00",
@@ -229,6 +337,7 @@ async function predictWebcam() {
     }
   } else {
     setHandState("No hand detected");
+    drawMidpointTrail();
   }
   canvasCtx.restore();
 
