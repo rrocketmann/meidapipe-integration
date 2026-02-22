@@ -1,5 +1,5 @@
 :root {
-  --blue-bg: #f3f8ff;
+  --blue-bg: #ffffff;
   --blue-text: #4a6485;
   --blue-border: #a8c3e8;
   --blue-button: #c5dbf7;
@@ -16,6 +16,7 @@ body {
   margin: 0 0 12px 0;
   font-size: 30px;
   color: #3f5878;
+  text-align: center;
 }
 
 #liveView {
@@ -44,6 +45,7 @@ body {
 }
 
 #aboutPanel {
+  margin-bottom: 12px;
   border: 1px solid var(--blue-border);
   border-radius: 8px;
   padding: 12px;

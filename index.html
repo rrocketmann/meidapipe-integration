@@ -28,6 +28,28 @@ limitations under the License. -->
 <body>
   <section id="demos">
   <h1 id="appTitle">Hanvas</h1>
+  <section id="aboutPanel" aria-label="About Hanvas">
+    <h2>About Hanvas</h2>
+    <p>
+      Hanvas is a real-time browser drawing app powered by MediaPipe hand landmark tracking.
+      The webcam stream is analyzed frame-by-frame, and a 21-point hand skeleton is estimated
+      in normalized coordinates, then mapped to the drawing canvas.
+    </p>
+    <p>
+      Drawing behavior is gesture-gated: closed or partially closed hands create paint points,
+      and nearby sampled points are interpolated to reduce visible gaps and produce smoother
+      strokes. Paint color is selected in the toolbar and stored per-point so mixed-color
+      drawings keep their original segments.
+    </p>
+    <p>
+      Libraries used: MediaPipe Tasks Vision (`HandLandmarker`, `FilesetResolver`) for detection,
+      plus MediaPipe drawing utilities for landmark rendering overlays.
+    </p>
+    <p>
+      Export captures the active drawing canvas as PNG. Project source is MIT licensed; bundled
+      MediaPipe components are provided under Apache License 2.0.
+    </p>
+  </section>
 
     <div id="liveView">
       <div class="controls">
@@ -54,18 +76,6 @@ limitations under the License. -->
         <p id="status">Initializing...</p>
         <p id="handState">Hand state: No hand detected</p>
       </div>
-      <section id="aboutPanel" aria-label="About Hanvas">
-        <h2>About Hanvas</h2>
-        <p>
-          Hanvas is a browser drawing tool controlled by hand tracking. Turn on the webcam,
-          make a fist or partial hand to paint, and use the color selector to switch stroke color.
-          Export saves your current drawing as a PNG.
-        </p>
-        <p>
-          License summary: this project code is released under the MIT License. It also uses
-          MediaPipe components from Google under Apache License 2.0 terms.
-        </p>
-      </section>
     </div>
   </section>
 </body>

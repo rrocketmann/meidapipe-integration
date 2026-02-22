@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: hanvas
+    env: static
+    buildCommand: ""
+    staticPublishPath: .
+    pullRequestPreviewsEnabled: true
