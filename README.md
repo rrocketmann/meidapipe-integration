@@ -61,6 +61,17 @@ If Blueprint import fails, create the service manually:
 
 After deploy, open your Render URL over HTTPS and allow camera access in the browser.
 
+### If you see: "Couldn't find a package.json file"
+
+Render is building this as a Node service. This repo now includes `package.json` so that mode works too.
+
+Use these service settings in Render:
+
+- **Build Command**: `yarn install && yarn build`
+- **Start Command**: `yarn start`
+
+Or keep using **Static Site** mode (no build command, publish directory `.`).
+
 ## License
 
 - This project source code is licensed under the MIT License (see `LICENSE`).

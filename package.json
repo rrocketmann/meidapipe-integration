@@ -1,0 +1,13 @@
+{
+  "name": "hanvas",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser-based hand tracking paint app",
+  "scripts": {
+    "build": "echo \"No build step required\"",
+    "start": "npx serve -s . -l $PORT"
+  },
+  "dependencies": {
+    "serve": "^14.2.4"
+  }
+}
