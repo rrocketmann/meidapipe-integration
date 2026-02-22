@@ -16,28 +16,56 @@ limitations under the License. -->
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Hand Gesture Drawing</title>
+  <title>Hanvas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
   <script type="module" src="script.js"></script>
 </head>
 <body>
-    <section id="demos">
-    <p style="font-family:Arial, sans-serif;" id="status">Initializing...</p>
-    <p style="font-family:Arial, sans-serif;" id="handState">Hand state: No hand detected</p>
+  <section id="demos">
+  <h1 id="appTitle">Hanvas</h1>
 
     <div id="liveView">
-      <button style="font-family:Arial, sans-serif;" id="webcamButton">
-        ENABLE WEBCAM
-      </button>
-      <button style="font-family:Arial, sans-serif;" id="clearButton">
-        CLEAR DRAWING
-      </button>
-      <p>     </p>
-      <div>
-        <video id="webcam" autoplay playsinline></video>
-        <canvas id="output_canvas"></canvas>
+      <div class="controls">
+        <button id="webcamButton">ENABLE WEBCAM</button>
+        <button id="clearButton">CLEAR DRAWING</button>
+        <button id="exportButton">EXPORT</button>
+        <select id="colorSelect" aria-label="Paint color">
+          <option value="#6fa8e6">Soft Blue</option>
+          <option value="#93c0f0">Sky Blue</option>
+          <option value="#c0a7e8">Lavender</option>
+          <option value="#8bc9be">Mint</option>
+          <option value="#f2b7c8">Rose</option>
+        </select>
       </div>
+      <div id="mediaRow">
+        <div id="drawingArea">
+          <canvas id="output_canvas"></canvas>
+        </div>
+        <div>
+          <video id="webcam" autoplay playsinline></video>
+        </div>
+      </div>
+      <div id="techOutputs">
+        <p id="status">Initializing...</p>
+        <p id="handState">Hand state: No hand detected</p>
+      </div>
+      <section id="aboutPanel" aria-label="About Hanvas">
+        <h2>About Hanvas</h2>
+        <p>
+          Hanvas is a browser drawing tool controlled by hand tracking. Turn on the webcam,
+          make a fist or partial hand to paint, and use the color selector to switch stroke color.
+          Export saves your current drawing as a PNG.
+        </p>
+        <p>
+          License summary: this project code is released under the MIT License. It also uses
+          MediaPipe components from Google under Apache License 2.0 terms.
+        </p>
+      </section>
     </div>
   </section>
 </body>

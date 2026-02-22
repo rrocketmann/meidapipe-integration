@@ -27,10 +27,17 @@ let handLandmarker = undefined;
 let runningMode = "IMAGE";
 let enableWebcamButton;
 let clearButton;
+let exportButton;
+let colorSelect;
 let webcamRunning = false;
 let stream = null;
 let midpointTrail = [];
 let lastMidpointSample = null;
+
+const DEFAULT_PAINT_COLOR = "#6fa8e6";
+const CONNECTOR_COLOR = "#9cc2ee";
+const LANDMARK_COLOR = "#4f89c6";
+let currentPaintColor = DEFAULT_PAINT_COLOR;
 
 function setStatus(message) {
   if (statusElement) {
@@ -102,9 +109,12 @@ function drawMidpoint(midpoint) {
 
   const x = midpoint.x * canvasElement.width;
   const y = midpoint.y * canvasElement.height;
+  const radiusX = midpoint.radiusX || 3;
+  const radiusY = midpoint.radiusY || 3;
+  
   canvasCtx.beginPath();
-  canvasCtx.arc(x, y, midpoint.radius || 8, 0, Math.PI * 2);
-  canvasCtx.fillStyle = "#0000FF";
+  canvasCtx.ellipse(x, y, radiusX, radiusY, 0, 0, Math.PI * 2);
+  canvasCtx.fillStyle = midpoint.color || currentPaintColor;
   canvasCtx.fill();
 }
 
@@ -120,21 +130,15 @@ function addMidpointToTrail(midpoint) {
   }
 
   const now = performance.now();
-  let radius = 12;
-  if (lastMidpointSample) {
-    const deltaTimeSeconds = Math.max((now - lastMidpointSample.timeMs) / 1000, 0.001);
-    const deltaDistance = distance(midpoint, lastMidpointSample.point);
-    const speed = deltaDistance / deltaTimeSeconds;
-    const clampedSpeed = Math.min(Math.max(speed, 0), 1.2);
-    const minRadius = 4;
-    const maxRadius = 16;
-    const speedRatio = clampedSpeed / 1.2;
-    radius = maxRadius - speedRatio * (maxRadius - minRadius);
-  }
+  const radiusX = 10;
+  const radiusY = 10;
+  
 
   const midpointPoint = {
     ...midpoint,
-    radius
+    radiusX,
+    radiusY,
+    color: currentPaintColor
   };
 
   const lastPoint = midpointTrail[midpointTrail.length - 1];
@@ -147,8 +151,30 @@ function addMidpointToTrail(midpoint) {
     return;
   }
 
-  const isFarEnough = distance(midpoint, lastPoint) > 0.01;
+  const isFarEnough = distance(midpoint, lastPoint) > 0;
   if (isFarEnough) {
+    const distancePx = Math.hypot(
+      (midpointPoint.x - lastPoint.x) * canvasElement.width,
+      (midpointPoint.y - lastPoint.y) * canvasElement.height
+    );
+    const nearbyThresholdPx = 80;
+    const maxGapPx = 10;
+
+    if (distancePx > 0 && distancePx <= nearbyThresholdPx) {
+      const interpolationSteps = Math.floor(distancePx / maxGapPx);
+      for (let step = 1; step <= interpolationSteps; step += 1) {
+        const t = step / (interpolationSteps + 1);
+        midpointTrail.push({
+          x: lastPoint.x + (midpointPoint.x - lastPoint.x) * t,
+          y: lastPoint.y + (midpointPoint.y - lastPoint.y) * t,
+          z: lastPoint.z + (midpointPoint.z - lastPoint.z) * t,
+          radiusX,
+          radiusY,
+          color: currentPaintColor
+        });
+      }
+    }
+
     midpointTrail.push(midpointPoint);
     lastMidpointSample = {
       point: midpoint,
@@ -157,9 +183,45 @@ function addMidpointToTrail(midpoint) {
   }
 }
 
+function setPaintColor(event) {
+  const selectedColor = event?.target?.value;
+  if (selectedColor) {
+    currentPaintColor = selectedColor;
+  }
+}
+
 function clearMidpointTrail() {
   midpointTrail = [];
   lastMidpointSample = null;
+}
+
+function exportDrawing() {
+  if (!canvasElement || canvasElement.width === 0 || canvasElement.height === 0) {
+    setStatus("Nothing to export yet. Start webcam and draw first.");
+    return;
+  }
+
+  const exportCanvas = document.createElement("canvas");
+  exportCanvas.width = canvasElement.width;
+  exportCanvas.height = canvasElement.height;
+  const exportCtx = exportCanvas.getContext("2d");
+  if (!exportCtx) {
+    setStatus("Export failed: unable to prepare image.");
+    return;
+  }
+
+  exportCtx.save();
+  exportCtx.translate(exportCanvas.width, 0);
+  exportCtx.scale(-1, 1);
+  exportCtx.drawImage(canvasElement, 0, 0);
+  exportCtx.restore();
+
+  const link = document.createElement("a");
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  link.href = exportCanvas.toDataURL("image/png");
+  link.download = `drawing-${timestamp}.png`;
+  link.click();
+  setStatus("Exported drawing as PNG.");
 }
 
 function setHandState(text) {
@@ -210,12 +272,22 @@ createHandLandmarker();
 ********************************************************************/
 
 const video = document.getElementById("webcam");
+const mediaRowElement = document.getElementById("mediaRow");
 video.style.transform = "scaleX(-1)";
 const canvasElement = document.getElementById(
   "output_canvas"
 );
 canvasElement.style.transform = "scaleX(-1)"
 const canvasCtx = canvasElement.getContext("2d");
+
+function setMediaActive(active) {
+  if (!mediaRowElement) {
+    return;
+  }
+  mediaRowElement.classList.toggle("media-active", active);
+}
+
+setMediaActive(false);
 
 // Check if webcam access is supported.
 const hasGetUserMedia = () => !!navigator.mediaDevices?.getUserMedia;
@@ -237,6 +309,17 @@ if (hasGetUserMedia()) {
 clearButton = document.getElementById("clearButton");
 if (clearButton) {
   clearButton.addEventListener("click", clearMidpointTrail);
+}
+
+exportButton = document.getElementById("exportButton");
+if (exportButton) {
+  exportButton.addEventListener("click", exportDrawing);
+}
+
+colorSelect = document.getElementById("colorSelect");
+if (colorSelect) {
+  colorSelect.value = DEFAULT_PAINT_COLOR;
+  colorSelect.addEventListener("change", setPaintColor);
 }
 
 // Enable the live webcam view and start detection.
@@ -265,6 +348,7 @@ function enableCam(event) {
     setWebcamButtonLabel("ENABLE WEBCAM");
     setStatus("Webcam stopped.");
     setHandState("No hand detected");
+    setMediaActive(false);
     clearMidpointTrail();
   } else {
     webcamRunning = true;
@@ -285,10 +369,12 @@ function enableCam(event) {
       });
       video.onloadeddata = () => {
         setStatus("Webcam active.");
+        setMediaActive(true);
         predictWebcam();
       };
     }).catch((error) => {
       webcamRunning = false;
+      setMediaActive(false);
       setWebcamButtonLabel("ENABLE WEBCAM");
       setStatus(`Unable to access webcam: ${error.name}. Check browser camera permissions.`);
       console.error("Unable to access webcam:", error);
@@ -330,10 +416,10 @@ async function predictWebcam() {
     drawMidpointTrail();
     for (const landmarks of results.landmarks) {
       drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
-        color: "#00FF00",
+        color: CONNECTOR_COLOR,
         lineWidth: 5
       });
-      drawLandmarks(canvasCtx, landmarks, { color: "#FF0000", lineWidth: 2 });
+      drawLandmarks(canvasCtx, landmarks, { color: LANDMARK_COLOR, lineWidth: 2 });
     }
   } else {
     setHandState("No hand detected");
