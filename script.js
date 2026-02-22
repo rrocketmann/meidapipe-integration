@@ -286,6 +286,14 @@ function setMediaActive(active) {
   mediaRowElement.classList.toggle("media-active", active);
 }
 
+function syncMediaAspectRatio(width, height) {
+  if (!mediaRowElement || !width || !height) {
+    return;
+  }
+
+  mediaRowElement.style.setProperty("--media-aspect-ratio", `${width} / ${height}`);
+}
+
 setMediaActive(false);
 
 // Auto-enable webcam at launch
@@ -342,6 +350,7 @@ function enableCam(event) {
         setStatus("Camera stream attached. Press play if browser paused autoplay.");
       });
       video.onloadeddata = () => {
+        syncMediaAspectRatio(video.videoWidth, video.videoHeight);
         setStatus("Webcam active.");
         setMediaActive(true);
         predictWebcam();
@@ -358,8 +367,7 @@ function enableCam(event) {
 let lastVideoTime = -1;
 let results = undefined;
 async function predictWebcam() {
-  canvasElement.style.width = `${video.videoWidth}px`;
-  canvasElement.style.height = `${video.videoHeight}px`;
+  syncMediaAspectRatio(video.videoWidth, video.videoHeight);
   canvasElement.width = video.videoWidth;
   canvasElement.height = video.videoHeight;
   
