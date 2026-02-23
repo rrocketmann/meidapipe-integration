@@ -1,6 +1,6 @@
 services:
   - type: web
     name: hanvas
-    runtime: static
-    buildCommand: ""
-    staticPublishPath: .
+    runtime: node
+    buildCommand: "npm install"
+    startCommand: "npm start"

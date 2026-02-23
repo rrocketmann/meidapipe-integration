@@ -5,9 +5,9 @@
   "description": "Browser-based hand tracking paint app",
   "scripts": {
     "build": "echo \"No build step required\"",
-    "start": "npx serve -s . -l $PORT"
+    "start": "node server.js"
   },
   "dependencies": {
-    "serve": "^14.2.4"
+    "express": "^4.21.2"
   }
 }

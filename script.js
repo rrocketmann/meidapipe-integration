@@ -28,10 +28,14 @@ let runningMode = "IMAGE";
 let enableWebcamButton;
 let clearButton;
 let exportButton;
+let shareButton;
 let colorSelect;
 let toggleDrawingButton;
 let toggleMixingButton;
 let toggleMixModeButton;
+let communityFeedElement;
+let communityEmptyElement;
+let communityPosts = [];
 let webcamRunning = false;
 let stream = null;
 let midpointTrails = {};
@@ -39,6 +43,10 @@ let drawingEnabled = true;
 let colorMixingEnabled = true;
 const MIXING_MODES = ["screen", "multiply"];
 let currentMixingModeIndex = 0;
+const COMMUNITY_MAX_POSTS = 50;
+const COMMUNITY_POSTS_API = "/api/community-posts";
+const COMMUNITY_STORAGE_KEY = "hanvasCommunityPosts";
+let communityStorageMode = "server";
 
 const DEFAULT_PAINT_COLOR = "#6fa8e6";
 const CONNECTOR_COLOR = "#9cc2ee";
@@ -240,10 +248,124 @@ function clearMidpointTrail() {
   midpointTrails = {};
 }
 
-function exportDrawing() {
-  if (!canvasElement || canvasElement.width === 0 || canvasElement.height === 0) {
-    setStatus("Nothing to export yet. Start webcam and draw first.");
+async function fetchCommunityPosts() {
+  try {
+    const response = await fetch(COMMUNITY_POSTS_API);
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    const posts = Array.isArray(data?.posts) ? data.posts : [];
+
+    return posts
+      .filter((post) => typeof post?.imageDataUrl === "string" && typeof post?.sharedAt === "string")
+      .slice(0, COMMUNITY_MAX_POSTS);
+  } catch {
+    return null;
+  }
+}
+
+async function postCommunityDrawing(imageDataUrl) {
+  try {
+    const response = await fetch(COMMUNITY_POSTS_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ imageDataUrl })
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    const posts = Array.isArray(data?.posts) ? data.posts : [];
+    return posts
+      .filter((post) => typeof post?.imageDataUrl === "string" && typeof post?.sharedAt === "string")
+      .slice(0, COMMUNITY_MAX_POSTS);
+  } catch {
+    return null;
+  }
+}
+
+function loadCommunityPostsFromLocalStorage() {
+  try {
+    const saved = window.localStorage.getItem(COMMUNITY_STORAGE_KEY);
+    if (!saved) {
+      return [];
+    }
+
+    const parsedPosts = JSON.parse(saved);
+    if (!Array.isArray(parsedPosts)) {
+      return [];
+    }
+
+    return parsedPosts
+      .filter((post) => typeof post?.imageDataUrl === "string" && typeof post?.sharedAt === "string")
+      .slice(0, COMMUNITY_MAX_POSTS);
+  } catch {
+    return [];
+  }
+}
+
+function saveCommunityPostsToLocalStorage(posts) {
+  try {
+    window.localStorage.setItem(COMMUNITY_STORAGE_KEY, JSON.stringify(posts.slice(0, COMMUNITY_MAX_POSTS)));
+  } catch {
+    setStatus("Unable to save local community posts in this browser.");
+  }
+}
+
+function buildCommunityCard(post) {
+  const card = document.createElement("article");
+  card.className = "communityCard";
+
+  const image = document.createElement("img");
+  image.src = post.imageDataUrl;
+  image.alt = "Shared drawing";
+
+  const timestamp = document.createElement("time");
+  timestamp.dateTime = post.sharedAt;
+  timestamp.textContent = `Shared ${new Date(post.sharedAt).toLocaleString()}`;
+
+  card.appendChild(image);
+  card.appendChild(timestamp);
+  return card;
+}
+
+function renderCommunityPosts() {
+  if (!communityFeedElement) {
     return;
+  }
+
+  communityFeedElement.innerHTML = "";
+  for (const post of communityPosts) {
+    communityFeedElement.appendChild(buildCommunityCard(post));
+  }
+
+  if (communityEmptyElement) {
+    communityEmptyElement.style.display = communityPosts.length > 0 ? "none" : "block";
+  }
+}
+
+async function initializeCommunityFeed() {
+  const serverPosts = await fetchCommunityPosts();
+  if (serverPosts) {
+    communityStorageMode = "server";
+    communityPosts = serverPosts;
+  } else {
+    communityStorageMode = "local";
+    communityPosts = loadCommunityPostsFromLocalStorage();
+    setStatus("Community server unavailable. Using local browser storage.");
+  }
+  renderCommunityPosts();
+}
+
+function createMirroredDrawingDataUrl() {
+  if (!canvasElement || canvasElement.width === 0 || canvasElement.height === 0) {
+    return null;
   }
 
   const exportCanvas = document.createElement("canvas");
@@ -251,8 +373,7 @@ function exportDrawing() {
   exportCanvas.height = canvasElement.height;
   const exportCtx = exportCanvas.getContext("2d");
   if (!exportCtx) {
-    setStatus("Export failed: unable to prepare image.");
-    return;
+    return null;
   }
 
   exportCtx.save();
@@ -261,12 +382,75 @@ function exportDrawing() {
   exportCtx.drawImage(canvasElement, 0, 0);
   exportCtx.restore();
 
+  return exportCanvas.toDataURL("image/png");
+}
+
+function exportDrawing() {
+  if (!canvasElement || canvasElement.width === 0 || canvasElement.height === 0) {
+    setStatus("Nothing to export yet. Start webcam and draw first.");
+    return;
+  }
+
+  const imageDataUrl = createMirroredDrawingDataUrl();
+  if (!imageDataUrl) {
+    setStatus("Export failed: unable to prepare image.");
+    return;
+  }
+
   const link = document.createElement("a");
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  link.href = exportCanvas.toDataURL("image/png");
+  link.href = imageDataUrl;
   link.download = `drawing-${timestamp}.png`;
   link.click();
   setStatus("Exported drawing as PNG.");
+}
+
+async function shareDrawing() {
+  if (!canvasElement || canvasElement.width === 0 || canvasElement.height === 0) {
+    setStatus("Nothing to share yet. Start webcam and draw first.");
+    return;
+  }
+
+  const confirmed = window.confirm("Share this drawing to the community section?");
+  if (!confirmed) {
+    return;
+  }
+
+  const imageDataUrl = createMirroredDrawingDataUrl();
+  if (!imageDataUrl) {
+    setStatus("Share failed: unable to prepare image.");
+    return;
+  }
+
+  if (!communityFeedElement) {
+    setStatus("Share failed: community section is unavailable.");
+    return;
+  }
+
+  if (communityStorageMode === "server") {
+    const updatedPosts = await postCommunityDrawing(imageDataUrl);
+    if (updatedPosts) {
+      communityPosts = updatedPosts;
+      renderCommunityPosts();
+      setStatus("Drawing shared to community.");
+      return;
+    }
+
+    communityStorageMode = "local";
+    setStatus("Community server unavailable. Saved locally instead.");
+  }
+
+  communityPosts.unshift({
+    imageDataUrl,
+    sharedAt: new Date().toISOString()
+  });
+  if (communityPosts.length > COMMUNITY_MAX_POSTS) {
+    communityPosts = communityPosts.slice(0, COMMUNITY_MAX_POSTS);
+  }
+
+  saveCommunityPostsToLocalStorage(communityPosts);
+  renderCommunityPosts();
+  setStatus("Drawing shared locally.");
 }
 
 function setHandState(text) {
@@ -314,9 +498,6 @@ const createHandLandmarker = async () => {
 };
 createHandLandmarker();
 
-/********************************************************************
-// Demo 2: Continuously grab image from webcam stream and detect it.
-********************************************************************/
 
 const video = document.getElementById("webcam");
 const mediaRowElement = document.getElementById("mediaRow");
@@ -359,6 +540,11 @@ if (exportButton) {
   exportButton.addEventListener("click", exportDrawing);
 }
 
+shareButton = document.getElementById("shareButton");
+if (shareButton) {
+  shareButton.addEventListener("click", shareDrawing);
+}
+
 colorSelect = document.getElementById("colorSelect");
 if (colorSelect) {
   colorSelect.value = DEFAULT_PAINT_COLOR;
@@ -382,6 +568,10 @@ if (toggleMixModeButton) {
   setMixModeButtonLabel();
   toggleMixModeButton.addEventListener("click", toggleColorMixingMode);
 }
+
+communityFeedElement = document.getElementById("communityFeed");
+communityEmptyElement = document.getElementById("communityEmpty");
+initializeCommunityFeed();
 
 // Enable the live webcam view and start detection.
 function enableCam(event) {
