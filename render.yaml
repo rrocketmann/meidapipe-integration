@@ -4,3 +4,10 @@ services:
     runtime: node
     buildCommand: "npm install"
     startCommand: "npm start"
+    envVars:
+      - key: DATA_DIR
+        value: /var/data/hanvas
+    disks:
+      - name: hanvas-data
+        mountPath: /var/data
+        sizeGB: 1

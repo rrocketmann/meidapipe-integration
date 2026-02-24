@@ -176,3 +176,14 @@ npm start
 - Use a normal browser tab for webcam permissions.
 - Some embedded preview contexts block camera access.
 - Exported PNG mirrors horizontally to match displayed drawing orientation.
+
+## Render Persistence (Community Shares)
+
+`/api/community-posts` is file-backed, so use persistent storage in Render:
+
+- Set `DATA_DIR` to a mounted disk path (configured in `render.yaml` as `/var/data/hanvas`).
+- Keep `community-posts.json` in that directory so shares survive restarts and cold starts.
+
+Important:
+
+- If your Render instance type does not support persistent disks (for example, some free tiers), use a managed database instead (Render Postgres/Redis or another external DB) because container-local files are not durable.

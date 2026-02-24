@@ -6,7 +6,7 @@ const app = express();
 const port = process.env.PORT || 8000;
 
 const MAX_POSTS = 50;
-const DATA_DIR = path.join(__dirname, "data");
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const POSTS_FILE = path.join(DATA_DIR, "community-posts.json");
 
 app.use(express.json({ limit: "10mb" }));
